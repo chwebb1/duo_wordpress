@@ -169,10 +169,39 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
          * if a user logs in to a site different from the one 
          * they are a member of, login will work however
          * it appears as if the user has no roles during authentication
-         * "fail closed" in this case and require duo auth
+         * so we must get the user's role from all the blogs that the 
+		 * user is assigned to. If the user is a role that requires Duo,
+		 * we will prompt them to login with 2FA. Otherwise, we allow them
+		 * to login without 2FA.
          */
-        if(empty($user->roles)) {
-            return true;
+        if( empty($user->roles) )
+		{
+			// Get the blog ID of all blogs this user belongs to
+			$blogs_of_user = get_blogs_of_user( $user->ID );
+			
+			if ( count($blogs_of_user) < 1 ) return true; 
+			$userRoles=array();
+			foreach ( $blogs_of_user as $blog )
+			{
+				switch_to_blog($blog->userblog_id);
+				$usr = new WP_user($user->ID,$blog->userblog_id);
+				if (!empty($usr->roles) && is_array($usr->roles)){
+					foreach($usr->roles as $role){
+						array_push($userRoles,$role);
+					}
+				}
+				restore_current_blog();
+				
+			}
+			if(!isset($userRoles) || empty($userRoles)){
+				return true;
+			}
+			$duoRequired = false;
+			foreach ($duo_roles as $role){
+				$val = in_array(strtolower($role),$userRoles);
+				$duoRequired = ($duoRequired || $val);
+			}
+			return $duoRequired;
         }
 
         foreach ($user->roles as $role) {
@@ -819,5 +848,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
             return get_option($key, $default);
         }
     }
+	function duoMsg( $msg )
+	{
+		error_log( PHP_EOL . $msg, 3, ABSPATH . 'duoDebug.log' );
+	}
+
+	// Clears the html buffer, so only use it once
+	function duoDmp( $var )
+	{
+		ob_start();
+		var_dump($var);
+		$result = ob_get_clean();
+		if ( file_exists( ABSPATH . 'duo_dump.html' ) )
+		{
+			unlink( ABSPATH . 'duo_dump.html' );
+		}
+		error_log( $result, 3, ABSPATH . 'duo_dump.html' );
+	}
 
 ?>
