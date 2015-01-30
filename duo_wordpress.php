@@ -3,8 +3,8 @@
 Plugin Name: Duo Two-Factor Authentication
 Plugin URI: http://wordpress.org/extend/plugins/duo-wordpress/
 Description: This plugin enables Duo two-factor authentication for WordPress logins.
-Version: 2.4
-Author: Duo Security
+Version: 2.4.1
+Author: Duo Security/Chris Webb
 Author URI: http://www.duosecurity.com
 License: GPL2
 */
